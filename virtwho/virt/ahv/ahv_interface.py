@@ -514,14 +514,22 @@ class AhvInterface(object):
         self._logger.info("Getting the list of available vms")
         is_pc = True if version == 'v3' else False
         vm_uuid_list = []
-        length = 0
+        length = ahv_constants.NUM_OF_REQUESTED_VMS
+        initial_offset = 0
         offset = 0
         total_matches = 0
         count = 1
         current = 0
         (url, cmd_method) = self.get_diff_ver_url_and_method(
             cmd_key='list_vms', intf_version=version)
-        res = self.make_rest_call(method=cmd_method, uri=url)
+        if cmd_method == 'post':
+            body = {
+                'length': length,
+                'offset': initial_offset
+            }
+            res = self.make_rest_call(method=cmd_method, uri=url, json=body)
+        else:
+            res = self.make_rest_call(method=cmd_method, uri=url)
         data = res.json()
         if "metadata" in data:
             if "total_matches" in data["metadata"] and "length" in data["metadata"]:
@@ -539,7 +547,7 @@ class AhvInterface(object):
         if length < total_matches:
             self._logger.debug(
                 'Number of vms %s returned from REST is less than the total'
-                'numberr:%s. Adjusting the offset and iterating over all'
+                'number: %s. Adjusting the offset and iterating over all'
                 'vms until evry vm is returned from the server.' % (length, total_matches)
             )
             count = math.ceil(total_matches/float(length))
@@ -559,9 +567,8 @@ class AhvInterface(object):
                         )
 
             body['offset'] = body['offset'] + length
-            body_data = json.dumps(body, indent=4)
             self._logger.debug('next vm list call has this body: %s' % body)
-            res = self.make_rest_call(method=cmd_method, uri=url, data=body_data)
+            res = self.make_rest_call(method=cmd_method, uri=url, json=body)
             data = res.json()
             current += 1
 
